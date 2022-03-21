@@ -145,10 +145,21 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
                         tokens.push(TokenType::NotEqual);
                         code_iter.next();
                     }
-                }
+                },
+                '\n' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::NewLine);
+                },
                 _ => {
                     current_token.push(c);
                 }
+            }
+        } else {
+            if current_token.len() > 0 {
+                tokens.push(match_token(&current_token))
             }
         }
     }
@@ -168,12 +179,7 @@ fn match_token(token : &String) -> TokenType {
         "end" => TokenType::End,
         "if" => TokenType::If,
         _ => {
-
-            let check_newline = Regex::new(r"/\n+/").unwrap();
-            if check_newline.is_match(token.as_str()) {
-                return TokenType::NewLine;
-            }
-            let check_felt = Regex::new(r"/^\d+$/").unwrap();
+            let check_felt = Regex::new(r"^\d+$").unwrap();
             if check_felt.is_match(token.as_str()) {
                 return TokenType::Literal(token.to_string());
             } else {
