@@ -1,6 +1,7 @@
 use regex::Regex;
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub enum TokenType {
     // Single character tokens
     LeftParen,
@@ -12,6 +13,12 @@ pub enum TokenType {
     Mul, 
     Div, 
     Dot,
+    Comma,
+
+    //Multi-symbol tokens
+    ReturnSpec,
+    DoubleEquals,
+    NotEqual,
 
     // Key words
     Func, 
@@ -21,10 +28,11 @@ pub enum TokenType {
     If, 
     Return, 
     End, 
+    NewLine,
 
     // Variables and Literals
     Literal(String),
-    Variable(String)
+    Name(String)
 }
 
 pub fn scan(cairo_code : String) -> Vec<TokenType> {
@@ -33,72 +41,114 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
 
     let mut current_token = String::new();
 
-    for (i,c) in cairo_code.chars().enumerate() {
-        match c {
-            ' ' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
+    let mut code_iter = cairo_code.chars().peekable();
+
+    for i in 0..cairo_code.len() {
+        let current_char = code_iter.next();
+        if let Some(c) = current_char {
+            match c {
+                ' ' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                },
+                '(' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::LeftParen);
+                },
+                ')' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::RightParen);
+                },
+                ':' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Colon);
+                },
+                ',' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Comma);
+                },
+                '+' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Plus);
+                },
+                '-' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+
+                    if code_iter.peek() == Some(&'>') {
+                        tokens.push(TokenType::ReturnSpec);
+                        code_iter.next();
+                    } else {
+                        tokens.push(TokenType::Minus);
+                    }
+                },
+                '*' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Mul);
+                },
+                '/' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Div);
+                },
+                '.' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+                    tokens.push(TokenType::Dot);
+                },
+                '=' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+
+                    if code_iter.peek() == Some(&'=') {
+                        tokens.push(TokenType::DoubleEquals);
+                        code_iter.next();
+                    } else {
+                        tokens.push(TokenType::Equals);
+                    }
+                },
+                '!' => {
+                    if current_token.len() > 0 {
+                        tokens.push(match_token(&current_token));
+                        current_token.clear();
+                    }
+
+                    if code_iter.peek() == Some(&'=') {
+                        tokens.push(TokenType::NotEqual);
+                        code_iter.next();
+                    }
                 }
-            },
-            '(' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
+                _ => {
+                    current_token.push(c);
                 }
-                tokens.push(TokenType::LeftParen);
-            },
-            ')' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::RightParen);
-            },
-            ':' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Colon);
-            },
-            '+' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Plus);
-            },
-            '-' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Minus);
-            },
-            '*' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Mul);
-            },
-            '/' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Div);
-            },
-            '.' => {
-                if current_token.len() > 0 {
-                    tokens.push(match_token(&current_token));
-                    current_token.clear()
-                }
-                tokens.push(TokenType::Dot);
-            },
-            _ => {
-                current_token.push(c);
             }
         }
     }
@@ -118,11 +168,16 @@ fn match_token(token : &String) -> TokenType {
         "end" => TokenType::End,
         "if" => TokenType::If,
         _ => {
-            let checkFelt = Regex::new(r"/^\d+$/").unwrap();
-            if checkFelt.is_match(token.as_str()) {
+
+            let check_newline = Regex::new(r"/\n+/").unwrap();
+            if check_newline.is_match(token.as_str()) {
+                return TokenType::NewLine;
+            }
+            let check_felt = Regex::new(r"/^\d+$/").unwrap();
+            if check_felt.is_match(token.as_str()) {
                 return TokenType::Literal(token.to_string());
             } else {
-                return TokenType::Variable(token.to_string());
+                return TokenType::Name(token.to_string());
             }
         }
     }
