@@ -1,5 +1,7 @@
-use std::env;
+//use std::env;
 use std::fs;
+
+mod scanner;
 
 fn main() {
     println!("Hello, world!");
@@ -9,5 +11,7 @@ fn main() {
     let contents = fs::read_to_string("example-programs/1.cairo")
         .expect("Something went wrong reading the file");
 
-    println!("With text:\n{}", contents);
+    let scanned = scanner::scan(contents);
+
+    println!("{:?}", scanned);
 }
