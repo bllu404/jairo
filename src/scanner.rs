@@ -14,6 +14,7 @@ pub enum TokenType {
     Div, 
     Dot,
     Comma,
+    EoF,
 
     //Multi-symbol tokens
     ReturnSpec,
@@ -49,48 +50,48 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
             match c {
                 ' ' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                 },
                 '(' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::LeftParen);
                 },
                 ')' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::RightParen);
                 },
                 ':' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Colon);
                 },
                 ',' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Comma);
                 },
                 '+' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Plus);
                 },
                 '-' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
 
@@ -103,28 +104,28 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
                 },
                 '*' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Mul);
                 },
                 '/' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Div);
                 },
                 '.' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::Dot);
                 },
                 '=' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
 
@@ -137,7 +138,7 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
                 },
                 '!' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
 
@@ -148,7 +149,7 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
                 },
                 '\n' => {
                     if current_token.len() > 0 {
-                        tokens.push(match_token(&current_token));
+                        tokens.push(get_token(&current_token));
                         current_token.clear();
                     }
                     tokens.push(TokenType::NewLine);
@@ -159,8 +160,10 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
             }
         } else {
             if current_token.len() > 0 {
-                tokens.push(match_token(&current_token))
+                tokens.push(get_token(&current_token))
             }
+
+            tokens.push(TokenType::EoF);
         }
     }
 
@@ -169,7 +172,7 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
 
 // Identities whether a token is a key word, literal, or user-defined name (e.g., variable name, function name) and 
 // returns the appropriate type
-fn match_token(token : &String) -> TokenType {
+fn get_token(token : &String) -> TokenType {
     match token.as_str() {
         "func" => TokenType::Func,
         "let" => TokenType::Let,
