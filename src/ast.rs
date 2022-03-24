@@ -47,6 +47,7 @@ struct VariableDefinition {
     value: Expression
 }
 
+// Token
 pub struct TokenIter {
     cursor: usize,
     tokens: Vec<TokenType>
@@ -85,6 +86,7 @@ impl TokenIter {
     }
 }
 
+// Checks if the next token matches any of the token types in `check_against`
 fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Option<bool> {
     if let Some(token) = token_iter.peek() {
         for token_type in check_against {
@@ -97,18 +99,20 @@ fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Opt
     None
 }
 
+
 pub fn get_expression(tokens : Vec<TokenType>) -> Option<Expression> {
     let mut tokens_iter = TokenIter::new(tokens);
 
     get_term(&mut tokens_iter)
 }
 
+// Gets a (+|-) b (+|-) c (+|-) ... where a, b, c, ... are sub expressions of the form x (*|/) y (*|/) z (*|/) ...
 fn get_term(tokens_iter : &mut TokenIter) -> Option<Expression> {
     let expr = get_factor(tokens_iter);
 
     while let Some(true) = match_token(tokens_iter, &[TokenType::Plus, TokenType::Minus]) {
         if let Some(operator) = tokens_iter.next() {
-
+    
             let operator = (*operator).clone();
 
             if let Some(right_expr) = get_factor(tokens_iter) {
@@ -121,6 +125,7 @@ fn get_term(tokens_iter : &mut TokenIter) -> Option<Expression> {
     expr
 }
 
+// Gets x (*|/) y (*|/) z (*|/) ... where x, y, z, ... are sub expressions of the form (-)* u (0 or more "-" followed by a sub expression u)
 fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
     let  expr = get_unary(tokens_iter);
 
@@ -138,6 +143,7 @@ fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
     expr
 }
 
+// gets (-)* u where u is either a literal, a variable name, or a grouping (an expression inside parentheses)
 fn get_unary(tokens_iter : &mut TokenIter) -> Option<Expression> {
     if let Some(some_token) = tokens_iter.peek() {
 
@@ -164,6 +170,8 @@ fn get_primary(tokens_iter : &mut TokenIter) -> Option<Expression> {
             TokenType::Name(some_str) => Some(
                 Expression::Variable(some_str.to_string())
             ),
+            //If a left parenthesis is found, get the expression inside, advance 
+            // the parser by one to account for the right parenthesis, and return the expression
             TokenType::LeftParen => {
                 if let Some(inner_expr) = get_term(tokens_iter) {
                     tokens_iter.advance(); // Advancing the cursor for the closing ')'.

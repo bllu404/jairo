@@ -13,7 +13,15 @@ fn main() {
         .expect("Something went wrong reading the file");
 
     //let scanned = scan(contents);
-    let parsed_expr = get_expression(vec![TokenType::Literal(String::from("1")), TokenType::Plus, TokenType::Literal(String::from("2"))]);
+    let parsed_expr = get_expression(vec![
+        TokenType::LeftParen, 
+        TokenType::Literal(String::from("1")), 
+        TokenType::Plus, 
+        TokenType::Literal(String::from("2")), 
+        TokenType::RightParen, 
+        TokenType::Mul,
+        TokenType::Literal(String::from("3"))
+    ]);
     
     println!("{:?}", parsed_expr);
 
