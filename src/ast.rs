@@ -2,8 +2,6 @@
 
 //mod scanner;
 use crate::scanner::TokenType;
-use std::iter::Peekable;
-use std::iter::Iterator;
 
 /*
 
@@ -49,13 +47,13 @@ struct VariableDefinition {
     value: Expression
 }
 
-pub struct ExprParserState {
+pub struct TokenIter {
     cursor: usize,
-    tokens: Vec<TokenType>
+    tokens: &Vec<TokenType>
 }
 
-impl ExprParserState {
-    pub fn new(tokens : Vec<TokenType>) -> Self {
+impl TokenIter {
+    pub fn new(tokens : &Vec<TokenType>) -> Self {
         Self {
             cursor: 0,
             tokens: tokens
@@ -80,113 +78,87 @@ impl ExprParserState {
             None => None
         }
     }
-}
-/*
-fn match_token(token : TokenType, check_against : &[TokenType]) -> bool {
-    for token_type in check_against {
-        if token == *token_type {
-            return true;
-        }
+
+    // Advances without returning the next element
+    pub fn advance(&mut self) {
+        self.cursor += 1;
     }
-    false
+}
+
+fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Option<bool> {
+    if let Some(&token) = token_iter.peek() {
+        for token_type in check_against {
+            if token == *token_type {
+                return Some(true);
+            }
+        }
+        return Some(false);
+    }
+    None
 }
 
 pub fn get_expression(tokens : &Vec<TokenType>) -> Option<Expression> {
-    let mut state = ExprParserState::new(tokens);
+    let mut tokens_iter = TokenIter::new(tokens);
 
-    get_term(&mut state)
+    get_term(&mut tokens_iter)
 }
 
-fn get_term(tokens : &mut state) -> Option<Expression> {
+fn get_term(tokens_iter : &mut TokenIter) -> Option<Expression> {
+    let mut expr = get_factor(tokens_iter);
 
-}
-
-// Takes an array of tokens, and returns a syntax tree
-pub fn get_expression (tokens : &Vec<TokenType>) -> Expression {
-    let mut token_iter = tokens.iter().peekable();
-
-    get_term(&mut token_iter)
-}
-
-fn get_term<'a, I>(iter: &mut Peekable<I>) -> Expression
-where
-    I : Iterator<Item = &'a TokenType>,
-{
-    let mut expr : Expression = get_factor(iter);
-
-    if let Some(tok) = iter.peek() {
-        let current_token = tok;
-
-        while match_token(**current_token, &[TokenType::Plus, TokenType::Minus]) {
-            iter.next();
-            let right_expr = get_factor(iter);
-            expr = Expression::Binary(Box::new(expr), **current_token, Box::new(right_expr))
+    while let Some(true) = match_token(tokens_iter, &[TokenType::Plus, TokenType::Minus]) {
+        if let Some(operator) = tokens_iter.next() {
+            let right_expr = get_factor(tokens_iter);
+            return Some(Expression::Binary(Box::new(expr), operator, Box::new(right_expr)));
         }
     }
-
     expr
 }
 
-fn get_factor<'a, I>(iter: &mut Peekable<I>) -> Expression
-where
-    I : Iterator<Item = &'a TokenType>,
-{
+fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
+    let mut expr = get_unary(tokens_iter);
 
-    let mut expr : Expression = get_unary(iter);
-
-    if let Some(tok) = iter.peek() {
-        let current_token = tok;
-
-        while match_token(**current_token, &[TokenType::Mul, TokenType::Div]) {
-            iter.next();
-            let right_expr = get_unary(iter);
-            expr = Expression::Binary(Box::new(expr), **current_token, Box::new(right_expr))
+    while let Some(true) = match_token(tokens_iter, &[TokenType::Mul, TokenType::Div]) {
+        if let Some(operator) = tokens_iter.next() {
+            let right_expr = get_unary(tokens_iter);
+            return Some(Expression::Binary(Box::new(expr), operator, Box::new(right_expr)));
         }
-    } 
-
+    }
     expr
 }
 
-fn get_unary<'a, I>(iter: &mut Peekable<I>) -> Expression
-where
-    I : Iterator<Item = &'a TokenType>,
-{
-    if let Some(tok) = iter.peek() {
-        let current_token = tok;
-
-        if match_token(**current_token, &[TokenType::Minus]) {
-            iter.next();
-            let right = get_unary(iter);
-            return Expression::Unary(**current_token, Box::new(right));
+fn get_unary(tokens_iter : &mut TokenIter) -> Option<Expression> {
+    if let Some(some_token) = tokens_iter.peek() {
+        if some_token == TokenType::Minus {
+            tokens_iter.advance();
+            let right_expr = get_unary(tokens_iter);
+            return Some(Expression::Unary(some_token, Box::new(right_expr)));
         }
     }
 
-    get_primary(iter)
+    get_primary(tokens_iter)
 }
 
-fn get_primary<'a, I>(iter: &mut Peekable<I>) -> Expression
-where
-    I : Iterator<Item = &'a TokenType>,
-{
-    if let Some(tok) = iter.next() {
-        let current_token = tok;
-
-        if let TokenType::Literal(lit) = *current_token {
-            return Expression::Felt(lit);
-        }
-    
-        if let TokenType::Name(name) = *current_token {
-            return Expression::Variable(name);
-        }
-    
-        if *current_token == TokenType::LeftParen {
-            let expr = get_term(iter);
-            iter.next(); //Advancing iter since a ')' is expected to come after the expression
-            return Expression::Grouping(Box::new(expr));
-        }
+fn get_primary(tokens_iter : &mut TokenIter) -> Option<Expression> {
+    if let Some(token) = tokens_iter.next() {
+        return match token {
+            TokenType::Literal(some_str) => Some(
+                Expression::Felt(some_str)
+            ),
+            TokenType::Name(some_str) => Some(
+                Expression::Variable(some_str)
+            ),
+            TokenType::LeftParen => {
+                let inner_expr = get_term(tokens_iter);
+                tokens_iter.advance(); // Advancing the cursor for the closing ')'.
+                return Some(
+                    Expression::Grouping(
+                        Box::new(inner_expr)
+                    )
+                )
+            }
+            _ => None
+        };
     }
-
-    panic!("Invalid expression");
+    None
 }
-
-*/
