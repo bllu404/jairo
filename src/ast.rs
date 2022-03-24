@@ -22,7 +22,7 @@ primary -> felt | name | ( expression )
 */
 
 #[derive(Debug)]
-enum Expression {
+pub enum Expression {
     Felt(String),
     Variable(String),
     Unary(TokenType, Box<Expression>),
@@ -49,11 +49,11 @@ struct VariableDefinition {
 
 pub struct TokenIter {
     cursor: usize,
-    tokens: &Vec<TokenType>
+    tokens: Vec<TokenType>
 }
 
 impl TokenIter {
-    pub fn new(tokens : &Vec<TokenType>) -> Self {
+    pub fn new(tokens : Vec<TokenType>) -> Self {
         Self {
             cursor: 0,
             tokens: tokens
@@ -86,9 +86,9 @@ impl TokenIter {
 }
 
 fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Option<bool> {
-    if let Some(&token) = token_iter.peek() {
+    if let Some(token) = token_iter.peek() {
         for token_type in check_against {
-            if token == *token_type {
+            if *token == *token_type {
                 return Some(true);
             }
         }
@@ -97,31 +97,42 @@ fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Opt
     None
 }
 
-pub fn get_expression(tokens : &Vec<TokenType>) -> Option<Expression> {
+pub fn get_expression(tokens : Vec<TokenType>) -> Option<Expression> {
     let mut tokens_iter = TokenIter::new(tokens);
 
     get_term(&mut tokens_iter)
 }
 
 fn get_term(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    let mut expr = get_factor(tokens_iter);
+    let expr = get_factor(tokens_iter);
 
     while let Some(true) = match_token(tokens_iter, &[TokenType::Plus, TokenType::Minus]) {
         if let Some(operator) = tokens_iter.next() {
-            let right_expr = get_factor(tokens_iter);
-            return Some(Expression::Binary(Box::new(expr), operator, Box::new(right_expr)));
+
+            let operator = (*operator).clone();
+
+            if let Some(right_expr) = get_factor(tokens_iter) {
+                if let Some(left_expr) = expr {
+                    return Some(Expression::Binary(Box::new(left_expr), operator, Box::new(right_expr)));
+                }
+            }
         }
     }
     expr
 }
 
 fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    let mut expr = get_unary(tokens_iter);
+    let  expr = get_unary(tokens_iter);
 
     while let Some(true) = match_token(tokens_iter, &[TokenType::Mul, TokenType::Div]) {
         if let Some(operator) = tokens_iter.next() {
-            let right_expr = get_unary(tokens_iter);
-            return Some(Expression::Binary(Box::new(expr), operator, Box::new(right_expr)));
+            
+            let operator = (*operator).clone();
+            if let Some(right_expr) = get_unary(tokens_iter) {
+                if let Some(left_expr) = expr {
+                    return Some(Expression::Binary(Box::new(left_expr), operator, Box::new(right_expr)));
+                }
+            }
         }
     }
     expr
@@ -129,10 +140,15 @@ fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
 
 fn get_unary(tokens_iter : &mut TokenIter) -> Option<Expression> {
     if let Some(some_token) = tokens_iter.peek() {
+
+        let some_token = (*some_token).clone();
+
         if some_token == TokenType::Minus {
             tokens_iter.advance();
-            let right_expr = get_unary(tokens_iter);
-            return Some(Expression::Unary(some_token, Box::new(right_expr)));
+            
+            if let Some(right_expr) = get_unary(tokens_iter) {
+                return Some(Expression::Unary(some_token, Box::new(right_expr)));
+            }
         }
     }
 
@@ -143,19 +159,22 @@ fn get_primary(tokens_iter : &mut TokenIter) -> Option<Expression> {
     if let Some(token) = tokens_iter.next() {
         return match token {
             TokenType::Literal(some_str) => Some(
-                Expression::Felt(some_str)
+                Expression::Felt(some_str.to_string())
             ),
             TokenType::Name(some_str) => Some(
-                Expression::Variable(some_str)
+                Expression::Variable(some_str.to_string())
             ),
             TokenType::LeftParen => {
-                let inner_expr = get_term(tokens_iter);
-                tokens_iter.advance(); // Advancing the cursor for the closing ')'.
-                return Some(
-                    Expression::Grouping(
-                        Box::new(inner_expr)
-                    )
-                )
+                if let Some(inner_expr) = get_term(tokens_iter) {
+                    tokens_iter.advance(); // Advancing the cursor for the closing ')'.
+                    return Some(
+                        Expression::Grouping(
+                            Box::new(inner_expr)
+                        )
+                    );
+                }
+
+                None
             }
             _ => None
         };
