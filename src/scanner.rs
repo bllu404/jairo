@@ -1,7 +1,6 @@
 use regex::Regex;
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     // Single character tokens
     LeftParen,
