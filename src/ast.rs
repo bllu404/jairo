@@ -61,10 +61,6 @@ impl TokenIter {
         }
     }
 
-    pub fn cursor(&self) -> usize {
-        self.cursor
-    }
-
     pub fn peek(&self) -> &TokenType {
         self.tokens.get(self.cursor).unwrap()
     }
@@ -137,6 +133,7 @@ fn get_unary(tokens_iter : &mut TokenIter) -> Expression {
     if next_token == TokenType::Minus {
         tokens_iter.advance();
         let right_expr = get_unary(tokens_iter);
+
         return Expression::Unary(next_token, Box::new(right_expr));
     }
 
@@ -153,7 +150,8 @@ fn get_primary(tokens_iter : &mut TokenIter) -> Expression {
         TokenType::LeftParen => {
             let inner_expr = get_term(tokens_iter);
             assert_eq!(*tokens_iter.next(), TokenType::RightParen);
-            return Expression::Grouping(Box::new(inner_expr));
+            
+            Expression::Grouping(Box::new(inner_expr))
         }
         _ => unreachable!()
     }

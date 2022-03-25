@@ -155,6 +155,9 @@ pub fn scan(cairo_code : String) -> Vec<TokenType> {
                 },
                 _ => {
                     current_token.push(c);
+                    if i == cairo_code.len() - 1 {
+                        tokens.push(get_token(&current_token))
+                    }
                 }
             }
         } else {
