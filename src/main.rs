@@ -18,9 +18,16 @@ fn main() {
         TokenType::Literal(String::from("1")), 
         TokenType::Plus, 
         TokenType::Literal(String::from("2")), 
+        TokenType::Plus, 
+        TokenType::Literal(String::from("3")), 
+        TokenType::Plus, 
+        TokenType::Literal(String::from("4")), 
+        TokenType::Plus, 
+        TokenType::Literal(String::from("5")), 
         TokenType::RightParen, 
         TokenType::Mul,
-        TokenType::Literal(String::from("3"))
+        TokenType::Literal(String::from("6")),
+        TokenType::EoF
     ]);
     
     println!("{:?}", parsed_expr);

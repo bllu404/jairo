@@ -65,19 +65,13 @@ impl TokenIter {
         self.cursor
     }
 
-    pub fn peek(&self) -> Option<&TokenType> {
-        self.tokens.get(self.cursor)
+    pub fn peek(&self) -> &TokenType {
+        self.tokens.get(self.cursor).unwrap()
     }
 
-    pub fn next(&mut self) -> Option<&TokenType> {
-        match self.tokens.get(self.cursor) {
-            Some(token) => {
-                self.cursor += 1;
-
-                Some(token)
-            }
-            None => None
-        }
+    pub fn next(&mut self) -> &TokenType {
+        self.cursor += 1;
+        self.tokens.get(self.cursor - 1).unwrap()
     }
 
     // Advances without returning the next element
@@ -87,105 +81,80 @@ impl TokenIter {
 }
 
 // Checks if the next token matches any of the token types in `check_against`
-fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> Option<bool> {
-    if let Some(token) = token_iter.peek() {
-        for token_type in check_against {
-            if *token == *token_type {
-                return Some(true);
-            }
+fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> bool {
+    let token = token_iter.peek(); 
+    for token_type in check_against {
+        if *token == *token_type {
+            return true;
         }
-        return Some(false);
     }
-    None
+    false
 }
 
-
-pub fn get_expression(tokens : Vec<TokenType>) -> Option<Expression> {
+pub fn get_expression(tokens : Vec<TokenType>) -> Expression {
     let mut tokens_iter = TokenIter::new(tokens);
 
     get_term(&mut tokens_iter)
 }
 
 // Gets a (+|-) b (+|-) c (+|-) ... where a, b, c, ... are sub expressions of the form x (*|/) y (*|/) z (*|/) ...
-fn get_term(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    let expr = get_factor(tokens_iter);
+fn get_term(tokens_iter : &mut TokenIter) -> Expression {
+    let mut expr = get_factor(tokens_iter);
 
-    while let Some(true) = match_token(tokens_iter, &[TokenType::Plus, TokenType::Minus]) {
-        if let Some(operator) = tokens_iter.next() {
-    
-            let operator = (*operator).clone();
+    while match_token(tokens_iter, &[TokenType::Plus, TokenType::Minus]) {
+        let operator = (*tokens_iter.next()).clone();
 
-            if let Some(right_expr) = get_factor(tokens_iter) {
-                if let Some(left_expr) = expr {
-                    return Some(Expression::Binary(Box::new(left_expr), operator, Box::new(right_expr)));
-                }
-            }
-        }
+        let right_expr = get_factor(tokens_iter);
+
+        expr = Expression::Binary(Box::new(expr), operator, Box::new(right_expr));
     }
+
     expr
 }
 
-// Gets x (*|/) y (*|/) z (*|/) ... where x, y, z, ... are sub expressions of the form (-)* u (0 or more "-" followed by a sub expression u)
-fn get_factor(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    let  expr = get_unary(tokens_iter);
 
-    while let Some(true) = match_token(tokens_iter, &[TokenType::Mul, TokenType::Div]) {
-        if let Some(operator) = tokens_iter.next() {
-            
-            let operator = (*operator).clone();
-            if let Some(right_expr) = get_unary(tokens_iter) {
-                if let Some(left_expr) = expr {
-                    return Some(Expression::Binary(Box::new(left_expr), operator, Box::new(right_expr)));
-                }
-            }
-        }
+
+// Gets x (*|/) y (*|/) z (*|/) ... where x, y, z, ... are sub expressions of the form (-)* u (0 or more "-" followed by a sub expression u)
+fn get_factor(tokens_iter : &mut TokenIter) -> Expression {
+    let  mut expr = get_unary(tokens_iter);
+
+    while match_token(tokens_iter, &[TokenType::Mul, TokenType::Div]) {
+        let operator = (*tokens_iter.next()).clone();
+
+        let right_expr = get_unary(tokens_iter);
+
+        expr = Expression::Binary(Box::new(expr), operator, Box::new(right_expr));
     }
+
     expr
 }
 
 // gets (-)* u where u is either a literal, a variable name, or a grouping (an expression inside parentheses)
-fn get_unary(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    if let Some(some_token) = tokens_iter.peek() {
+fn get_unary(tokens_iter : &mut TokenIter) -> Expression {
 
-        let some_token = (*some_token).clone();
+    let next_token = (*tokens_iter.peek()).clone();
 
-        if some_token == TokenType::Minus {
-            tokens_iter.advance();
-            
-            if let Some(right_expr) = get_unary(tokens_iter) {
-                return Some(Expression::Unary(some_token, Box::new(right_expr)));
-            }
-        }
+    if next_token == TokenType::Minus {
+        tokens_iter.advance();
+        let right_expr = get_unary(tokens_iter);
+        return Expression::Unary(next_token, Box::new(right_expr));
     }
 
     get_primary(tokens_iter)
 }
 
-fn get_primary(tokens_iter : &mut TokenIter) -> Option<Expression> {
-    if let Some(token) = tokens_iter.next() {
-        return match token {
-            TokenType::Literal(some_str) => Some(
-                Expression::Felt(some_str.to_string())
-            ),
-            TokenType::Name(some_str) => Some(
-                Expression::Variable(some_str.to_string())
-            ),
-            //If a left parenthesis is found, get the expression inside, advance 
-            // the parser by one to account for the right parenthesis, and return the expression
-            TokenType::LeftParen => {
-                if let Some(inner_expr) = get_term(tokens_iter) {
-                    tokens_iter.advance(); // Advancing the cursor for the closing ')'.
-                    return Some(
-                        Expression::Grouping(
-                            Box::new(inner_expr)
-                        )
-                    );
-                }
+fn get_primary(tokens_iter : &mut TokenIter) -> Expression {
 
-                None
-            }
-            _ => None
-        };
+    let next_token = tokens_iter.next();
+
+    match next_token {
+        TokenType::Literal(some_str) => Expression::Felt(some_str.to_string()),
+        TokenType::Name(some_str) => Expression::Variable(some_str.to_string()),
+        TokenType::LeftParen => {
+            let inner_expr = get_term(tokens_iter);
+            assert_eq!(*tokens_iter.next(), TokenType::RightParen);
+            return Expression::Grouping(Box::new(inner_expr));
+        }
+        _ => unreachable!()
     }
-    None
 }
