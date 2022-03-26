@@ -5,6 +5,14 @@ use crate::scanner::TokenType;
 
 /*
 
+Function Definition Grammar
+---------------------------
+func name(a,b,c,...) (->(x,y,z...))?:
+    variable definition
+    variable definition,
+    ...
+end
+
 Variable Definition Grammar
 ---------------------------
 tempvar name = expression
@@ -30,21 +38,33 @@ pub enum Expression {
     Grouping(Box<Expression>)
 }
 
+struct FunctionDefinition {
+    name: String, 
+    arguments : Vec<String>,
+    statements : Vec<Statement>,
+    return_statement : Expression
+}
+
+// Statements that can be found in a code block (inside a function, if statement, etc.)
+enum Statement {
+    VarDef(Box<VariableDefinition>),
+    FuncCall(Box<FunctionCall>),
+}
+
+
 struct FunctionCall {
     func_name: String, 
     args : Vec<Expression>
 }
 
-struct FunctionDefinition {
-    name: String, 
-    arguments : Vec<String>,
-    blocks : Vec<VariableDefinition>,
-    return_statement : Expression
-}
 
 struct VariableDefinition {
     name: String, 
     value: Expression
+}
+
+struct If {
+
 }
 
 // Token
@@ -87,10 +107,28 @@ fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> boo
     false
 }
 
+
+// -------------- EXPRESSION PARSING -------------- //
+
 pub fn get_expression(tokens : Vec<TokenType>) -> Expression {
     let mut tokens_iter = TokenIter::new(tokens);
 
-    get_term(&mut tokens_iter)
+    get_comparison(&mut tokens_iter)
+}
+
+// Gets a (==|!=) b where a, b are sub expressions of the form x (+|-) y (+|-) z (+|-) ...
+fn get_comparison(tokens_iter : &mut TokenIter) -> Expression {
+    let mut expr = get_term(tokens_iter);
+
+    if match_token(tokens_iter, &[TokenType::DoubleEquals, TokenType::NotEqual]) {
+        let operator = (*tokens_iter.next()).clone();
+
+        let right_expr = get_term(tokens_iter);
+
+        expr = Expression::Binary(Box::new(expr), operator, Box::new(right_expr));
+    }
+
+    expr
 }
 
 // Gets a (+|-) b (+|-) c (+|-) ... where a, b, c, ... are sub expressions of the form x (*|/) y (*|/) z (*|/) ...
@@ -107,8 +145,6 @@ fn get_term(tokens_iter : &mut TokenIter) -> Expression {
 
     expr
 }
-
-
 
 // Gets x (*|/) y (*|/) z (*|/) ... where x, y, z, ... are sub expressions of the form (-)* u (0 or more "-" followed by a sub expression u)
 fn get_factor(tokens_iter : &mut TokenIter) -> Expression {
