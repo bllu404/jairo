@@ -108,9 +108,70 @@ fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> boo
 }
 
 
+
+// -------------- FUNCTION PARSING -------------- //
+/*
+ * 1. Expdect `func`
+ * 2. Expect `name`
+ * 3. Expect `(`(a_1 (`,` a_i)*)? ')'
+ * 4. Expect (`->` a_1 (`,` a_i)*)?
+ * 7. Expect ':'
+ * 8. Expect (VariableDefinition | FuncCall)*
+ * 9. Expect `return``(` (a_1 (`,` a_i)*) `)`
+ * 10. Expect end
+*/
+
+pub fn get_func(tokens_iter : &mut TokenIter) -> FunctionDefinition {
+    if *tokens_iter.next() == TokenType::Func {
+        let func_name;
+        let func_args;
+        let func_statements;
+        let func_return;
+
+        func_name = (*tokens_iter.next()).clone();
+        
+        assert_eq!(*tokens_iter.next(), TokenType::LeftParen);
+
+        func_args = Vec<String>::new();
+
+        if *tokens_iter.peek() != TokenType::RightParen {
+            func_args.push((*tokens_iter.next()).cloe()); // Pushing first argument
+            
+            while *token_iter.peek() == TokenType::Comma {
+                func_args.advance(); // Advancing for the comma
+                func_args.push((*tokens_iter.next()).cloe()); // Pushing first argument
+            }
+        }
+
+        assert_eq!(*tokens_iter.next(), TokenType::RightParen);
+
+        // So far we have: func name (a,b,c,...)
+
+        // Advancing until`:` is reached, indicating the end of the function signature.
+        // Javascript doesn't specify return args in function signatures so we can ignore those
+        while *token_iter.next() != TokenType::Colon {
+
+        }
+
+        assert_eq!(*tokens_iter.next(), TokenType::NewLine); // Expecting \n after the `:`
+
+        // While we don't get a return statement, keep getting new statements
+        func_statements = Vec<Statement>::new();
+
+        while *tokens_iter.peek() != TokenType::Return {
+            get_statement(token_iter);
+        }
+    } else {
+        panic!("Expected a function definition");
+    }
+}
+
+// -------------- STATEMENT PARSING -------------- //
+
+
 // -------------- EXPRESSION PARSING -------------- //
 
-pub fn get_expression(tokens : Vec<TokenType>) -> Expression {
+fn get_expression(tokens : Vec<TokenType>) -> Expression {
     let mut tokens_iter = TokenIter::new(tokens);
 
     get_comparison(&mut tokens_iter)
