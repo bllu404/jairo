@@ -35,7 +35,8 @@ pub enum Expression {
     Variable(String),
     Unary(TokenType, Box<Expression>),
     Binary(Box<Expression>, TokenType, Box<Expression>),
-    Grouping(Box<Expression>)
+    Grouping(Box<Expression>),
+    FuncCall(FunctionCall)
 }
 
 struct FunctionDefinition {
@@ -167,15 +168,77 @@ pub fn get_func(tokens_iter : &mut TokenIter) -> FunctionDefinition {
 }
 
 // -------------- STATEMENT PARSING -------------- //
+fn get_statement(tokens_iter : &mut TokenIter) -> Statement {
+    match *tokens_iter.next() {
+        TokenType::Let => {
+            match *tokens_iter.next() {
+                TokenType::LeftParen => {
+                    let var_name = (*tokens_iter.next().unwrap()).clone();
+                    assert_eq!(*tokens_iter.next(), TokenType::RightParen); // Next token should be `)`. let (var_name)...
+                    assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. let (var_name) = ...
 
+                    let func_name = (*tokens_iter.next().unwrap()).clone();
+                    assert_eq!(*tokens_iter.next(), TokenType::LeftParen); // Next token should be `(`. func_name(...
+                    
+                    let args = Vec<Expression>::new();
+                    while *tokens_iter.peek() != TokenType::NewLine {
+                        args.push(get_term(tokens_iter));
+                    }
+
+                    tokens_iter.advance(); //Advancing for the NewLine token
+
+                    VariableDefinition{
+                        name: var_name, 
+                        expression: Expression::FuncCall(
+                            FunctionCall{
+                                func_name: func_name, 
+                                args: args
+                            }
+                        )
+                    }
+
+                },
+                TokenType::Name(name_str) => {
+                    let var_name = (*name_str).clone();
+
+                    assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. let var_name = ...
+
+                    let expr = get_term(tokens_iter);
+
+                    // No need to advance for newline here as it's already skipped over by `get_term`
+                    VariableDefinition{
+                        name: var_name, 
+                        expression: expr
+                    }
+                },
+                _ => unreachable!()
+            }
+
+        },
+        TokenType::Tempvar | TokenType::Local => {
+            let var_name = (*tokens_iter.next().unwrap()).clone();
+            
+            assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. (tempvar|local) var_name = ...
+
+            let expr = get_term(tokens_iter);
+
+            VariableDefinition{
+                name: var_name,
+                expression: expr
+            }
+        },
+        _ => unreachable!()
+        // TODO: Add support for if statements
+    }
+}
 
 // -------------- EXPRESSION PARSING -------------- //
-
+/*
 fn get_expression(tokens : Vec<TokenType>) -> Expression {
     let mut tokens_iter = TokenIter::new(tokens);
 
     get_comparison(&mut tokens_iter)
-}
+}*/
 
 // Gets a (==|!=) b where a, b are sub expressions of the form x (+|-) y (+|-) z (+|-) ...
 fn get_comparison(tokens_iter : &mut TokenIter) -> Expression {
