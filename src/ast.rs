@@ -43,7 +43,7 @@ struct FunctionDefinition {
     name: String, 
     arguments : Vec<String>,
     statements : Vec<Statement>,
-    return_statement : Expression
+    return_statement : Vec<Expression>
 }
 
 // Statements that can be found in a code block (inside a function, if statement, etc.)
@@ -86,6 +86,10 @@ impl TokenIter {
         self.tokens.get(self.cursor).unwrap()
     }
 
+    pub fn peek_n(&self, n : usize) -> &TokenType {
+        self.tokens.get(self.cursor + n).unwrap()
+    }
+
     pub fn next(&mut self) -> &TokenType {
         self.cursor += 1;
         self.tokens.get(self.cursor - 1).unwrap()
@@ -95,11 +99,21 @@ impl TokenIter {
     pub fn advance(&mut self) {
         self.cursor += 1;
     }
+
+    pub fn advance_n(&mut self, n : usize) {
+        self.cursor += n;
+    }
+
+
+
+    pub fn next_assert(&mut self, check_against : TokenType) {
+        assert_eq!(*self.next(), check_against);
+    }
 }
 
 // Checks if the next token matches any of the token types in `check_against`
-fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> bool {
-    let token = token_iter.peek(); 
+fn match_token(tokens_iter : &mut TokenIter, check_against : &[TokenType]) -> bool {
+    let token = tokens_iter.peek(); 
     for token_type in check_against {
         if *token == *token_type {
             return true;
@@ -107,8 +121,6 @@ fn match_token(token_iter : &mut TokenIter, check_against : &[TokenType]) -> boo
     }
     false
 }
-
-
 
 // -------------- FUNCTION PARSING -------------- //
 /*
@@ -131,37 +143,60 @@ pub fn get_func(tokens_iter : &mut TokenIter) -> FunctionDefinition {
 
         func_name = (*tokens_iter.next()).clone();
         
-        assert_eq!(*tokens_iter.next(), TokenType::LeftParen);
+        tokens_iter.next_assert(TokenType::LeftParen);
 
-        func_args = Vec<String>::new();
+        func_args = Vec::new();
 
         if *tokens_iter.peek() != TokenType::RightParen {
-            func_args.push((*tokens_iter.next()).cloe()); // Pushing first argument
+            func_args.push((*tokens_iter.next()).clone()); // Pushing first argument
             
-            while *token_iter.peek() == TokenType::Comma {
-                func_args.advance(); // Advancing for the comma
-                func_args.push((*tokens_iter.next()).cloe()); // Pushing first argument
+            while *tokens_iter.peek() == TokenType::Comma {
+                tokens_iter.advance(); // Advancing for the comma
+                func_args.push((*tokens_iter.next()).clone()); // Pushing first argument
             }
         }
 
-        assert_eq!(*tokens_iter.next(), TokenType::RightParen);
+        tokens_iter.next_assert(TokenType::RightParen);
 
         // So far we have: func name (a,b,c,...)
 
         // Advancing until`:` is reached, indicating the end of the function signature.
         // Javascript doesn't specify return args in function signatures so we can ignore those
-        while *token_iter.next() != TokenType::Colon {
+        while *tokens_iter.next() != TokenType::Colon {
 
         }
 
-        assert_eq!(*tokens_iter.next(), TokenType::NewLine); // Expecting \n after the `:`
+        tokens_iter.next_assert(TokenType::NewLine);
 
         // While we don't get a return statement, keep getting new statements
-        func_statements = Vec<Statement>::new();
+        func_statements = Vec::new();
 
         while *tokens_iter.peek() != TokenType::Return {
-            get_statement(token_iter);
+            func_statements.push(get_statement(tokens_iter));
         }
+
+
+        func_return = Vec::new();
+
+        tokens_iter.advance(); // Advancing for the `return` token
+        tokens_iter.next_assert(TokenType::LeftParen);
+
+        while *tokens_iter.peek() != TokenType:: NewLine {
+            tokens_iter.advance_n(2); // Advancing for the name of the return variable, which we don't need in JS, and for the `=`
+
+            func_return.push(get_term(tokens_iter));
+        }
+
+        tokens_iter.advance(); //Advancing for NewLine
+        tokens_iter.next_assert(TokenType::End);
+
+        return FunctionDefinition{
+            name: func_name, 
+            arguments: func_args, 
+            statements: func_statements, 
+            return_statement: func_return
+        }
+
     } else {
         panic!("Expected a function definition");
     }
@@ -174,20 +209,20 @@ fn get_statement(tokens_iter : &mut TokenIter) -> Statement {
             match *tokens_iter.next() {
                 TokenType::LeftParen => {
                     let var_name = (*tokens_iter.next().unwrap()).clone();
-                    assert_eq!(*tokens_iter.next(), TokenType::RightParen); // Next token should be `)`. let (var_name)...
-                    assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. let (var_name) = ...
+                    tokens_iter.next_assert(TokenType::RightParen); // Next token should be `)`. let (var_name)...
+                    tokens_iter.next_assert(TokenType::Equals); // Next token should be `=`. let (var_name) = ...
 
                     let func_name = (*tokens_iter.next().unwrap()).clone();
-                    assert_eq!(*tokens_iter.next(), TokenType::LeftParen); // Next token should be `(`. func_name(...
+                    tokens_iter.next_assert(TokenType::LeftParen); // Next token should be `(`. func_name(...
                     
-                    let args = Vec<Expression>::new();
+                    let args = Vec::new();
                     while *tokens_iter.peek() != TokenType::NewLine {
                         args.push(get_term(tokens_iter));
                     }
 
                     tokens_iter.advance(); //Advancing for the NewLine token
 
-                    VariableDefinition{
+                    Statement(VariableDefinition{
                         name: var_name, 
                         expression: Expression::FuncCall(
                             FunctionCall{
@@ -195,13 +230,13 @@ fn get_statement(tokens_iter : &mut TokenIter) -> Statement {
                                 args: args
                             }
                         )
-                    }
+                    })
 
                 },
                 TokenType::Name(name_str) => {
                     let var_name = (*name_str).clone();
 
-                    assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. let var_name = ...
+                    tokens_iter.next_assert(TokenType::Equals); // Next token should be `=`. let var_name = ...
 
                     let expr = get_term(tokens_iter);
 
@@ -218,7 +253,7 @@ fn get_statement(tokens_iter : &mut TokenIter) -> Statement {
         TokenType::Tempvar | TokenType::Local => {
             let var_name = (*tokens_iter.next().unwrap()).clone();
             
-            assert_eq!(*tokens_iter.next(), TokenType::Equals); // Next token should be `=`. (tempvar|local) var_name = ...
+            tokens_iter.next_assert(TokenType::Equals); // Next token should be `=`. (tempvar|local) var_name = ...
 
             let expr = get_term(tokens_iter);
 
@@ -309,8 +344,7 @@ fn get_primary(tokens_iter : &mut TokenIter) -> Expression {
         TokenType::Name(some_str) => Expression::Variable(some_str.to_string()),
         TokenType::LeftParen => {
             let inner_expr = get_term(tokens_iter);
-            assert_eq!(*tokens_iter.next(), TokenType::RightParen);
-            
+            tokens_iter.next_assert(TokenType::RightParen);
             Expression::Grouping(Box::new(inner_expr))
         }
         _ => unreachable!()

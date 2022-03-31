@@ -5,7 +5,7 @@ mod scanner;
 mod ast;
 
 use scanner::{scan};
-use ast::get_expression;
+//use ast::get_expression;
 
 
 fn main() {
